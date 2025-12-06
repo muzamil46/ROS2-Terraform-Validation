@@ -32,29 +32,31 @@ jobs:
         curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
 
     - name: Run TFLint
-      run: tflint --config=./.tflint.hcl || true
+      run: tflint || true
 
-    # ----------------- TFSEC SECURITY SCAN ------------------
+    # ----------------- TFSEC SCAN ------------------
     - name: Run tfsec Scan
       uses: aquasecurity/tfsec-pr-commenter-action@v1.2.0
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
 
-    # ----------------- BICEP VALIDATION ------------------
-    - name: Install Azure CLI
+    # ----------------- AZURE CLI + BICEP ------------------
+    - name: Install Azure CLI + Bicep
       uses: azure/cli@v1
-
-    - name: Install Bicep
-      run: az bicep install
+      with:
+        inlineScript: |
+          az bicep install
 
     - name: Validate Bicep Files
-      run: |
-        for file in $(find . -name "*.bicep"); do
-          echo "Validating $file"
-          az bicep build --file "$file"
-        done
+      uses: azure/cli@v1
+      with:
+        inlineScript: |
+          for file in $(find . -name "*.bicep"); do
+            echo "Validating $file"
+            az bicep build --file "$file"
+          done
 
-    # ------------------ GOVERNANCE CHECKS ------------------
+    # ------------------ GOVERNANCE CHECK ------------------
     - name: Governance Validation
       run: python3 scripts/validate-governance.py
 

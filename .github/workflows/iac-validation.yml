@@ -3,19 +3,17 @@ name: IaC Validation Pipeline
 on:
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch:      # <-- allows manual run from GitHub UI
+  workflow_dispatch:
 
 jobs:
-  validate-iac:
-    name: Validate Terraform/Bicep IaC
+  validate:
     runs-on: ubuntu-latest
 
     steps:
-
-    - name: Checkout repository
+    - name: Checkout Code
       uses: actions/checkout@v4
 
-    # ---------- TERRAFORM SETUP ----------
+    # ----------------- TERRAFORM ------------------
     - name: Install Terraform
       uses: hashicorp/setup-terraform@v3
 
@@ -28,36 +26,43 @@ jobs:
     - name: Terraform Validate
       run: terraform validate || true
 
-    # ---------- TFLINT ----------
+    # ----------------- TFLINT (manual install) ------------------
+    - name: Install TFLint
+      run: |
+        curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
     - name: Run TFLint
-      uses: tflint/tflint-action@v3
+      run: tflint --config=./.tflint.hcl || true
+
+    # ----------------- TFSEC SECURITY SCAN ------------------
+    - name: Run tfsec Scan
+      uses: aquasecurity/tfsec-pr-commenter-action@v1.2.0
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
 
-    # ---------- TFSEC SECURITY SCAN ----------
-    - name: Run tfsec Security Scan
-      uses: aquasecurity/tfsec-action@v1
+    # ----------------- BICEP VALIDATION ------------------
+    - name: Install Azure CLI
+      uses: azure/cli@v1
 
-    # ---------- BICEP VALIDATION ----------
-    - name: Install Azure CLI (for Bicep)
-      uses: azure/setup-azure-cli@v3
+    - name: Install Bicep
+      run: az bicep install
 
-    - name: Bicep Build (syntax validation)
+    - name: Validate Bicep Files
       run: |
         for file in $(find . -name "*.bicep"); do
           echo "Validating $file"
           az bicep build --file "$file"
         done
 
-    # ---------- CUSTOM GOVERNANCE CHECKS ----------
-    - name: Run Governance Validation Script
+    # ------------------ GOVERNANCE CHECKS ------------------
+    - name: Governance Validation
       run: python3 scripts/validate-governance.py
 
-    # ---------- TERRAFORM DRY RUN ----------
+    # ------------------ TERRAFORM PLAN ------------------
     - name: Terraform Plan (Dry Run)
       run: terraform plan -out=tfplan.out || true
 
-    - name: Upload Terraform Plan Artifact
+    - name: Upload Plan
       uses: actions/upload-artifact@v4
       with:
         name: terraform-plan

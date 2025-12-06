@@ -1,0 +1,58 @@
+name: IaC Validation
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  validate-iac:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # -------- TERRAFORM SECTION --------
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Terraform fmt
+      run: terraform fmt -check
+
+    - name: Terraform init
+      run: terraform init -backend=false
+
+    - name: Terraform validate
+      run: terraform validate
+
+    - name: Run TFLint
+      uses: terraform-linters/tflint-action@v1
+
+    - name: Run TFSEC Security Scan
+      uses: aquasecurity/tfsec-action@v1.0.3
+
+    # -------- BICEP SECTION --------
+    - name: Install Bicep
+      run: az bicep install
+
+    - name: Bicep build (syntax check)
+      run: |
+        for file in $(find . -name "*.bicep"); do
+          echo "Validating $file"
+          bicep build $file
+        done
+
+    # -------- GOVERNANCE CHECKS --------
+    - name: Run custom governance checks
+      run: python3 scripts/validate-governance.py
+
+    # -------- TERRAFORM DRY RUN --------
+    - name: Terraform Plan (Dry Run)
+      run: terraform plan -out=tfplan.out
+
+    - name: Upload Plan Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tfplan
+        path: tfplan.out

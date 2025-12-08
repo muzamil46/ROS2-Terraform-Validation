@@ -1,15 +1,25 @@
+@description('Environment name')
 param env string = 'dev'
+
+@description('Application name')
 param appName string = 'sample-app'
 
 var tags = {
   env: env
   owner: 'devops'
-  cost-center: '001'
+  costCenter: '001'
   app: appName
 }
 
-resource dummy 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: '${appName}-rg'
+resource placeholder 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
+  name: '${appName}-script'
   location: 'eastus'
+  kind: 'AzurePowerShell'
+  properties: {
+    azPowerShellVersion: '5.0'
+    retentionInterval: 'P1D'
+    scriptContent: 'Write-Output "Hello World"'
+    timeout: 'PT30M'
+  }
   tags: tags
 }

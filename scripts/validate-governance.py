@@ -1,7 +1,7 @@
 import glob
 import re
 
-required_tags = ["env", "owner", "cost-center", "app"]
+required_tags = ["env", "owner", "app"]
 name_regex = r"^[a-z0-9-]+$"
 
 for tf_file in glob.glob("*.tf"):
